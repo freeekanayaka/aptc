@@ -1,0 +1,8 @@
+/* Define the arch name string */
+#define COMMON_ARCH "${COMMON_ARCH}"
+
+/* The package name string */
+#define PACKAGE "${PACKAGE}"
+
+/* The version number string */
+#define PACKAGE_VERSION "${PACKAGE_VERSION}"
