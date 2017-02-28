@@ -83,6 +83,23 @@ TEST(RunCommandLineTest, NoCommand) {
   _error->Discard();
 }
 
+// If the special command 'help' is passed, the help text is printed.
+TEST(RunCommandLineTest, HelpCommand) {
+  testing::internal::CaptureStdout();
+
+  const char argc = 2;
+  const char *argv[] = {"aptc", "help"};
+
+  EXPECT_EQ(RunCommandLine(SampleArgs, SampleCmds, SampleHelpTemplate, argc, argv),
+	    0);
+
+  EXPECT_THAT(testing::internal::GetCapturedStdout(),
+	      testing::HasSubstr("Usage: foo"));
+
+  _config->Clear();
+  _error->Discard();
+}
+
 // If an invalid command is specified, an error is printed.
 TEST(RunCommandLineTest, InvalidCommand) {
   testing::internal::CaptureStderr();

@@ -3,6 +3,9 @@ find_package(Threads REQUIRED)
 set(GTEST_ROOT "/usr/src/gtest")
 set(GMOCK_ROOT "/usr/src/gmock")
 
+set(LCOV_REMOVE_EXTRA "'test/*'")
+
+include(CodeCoverage)
 include(ExternalProject)
 
 ExternalProject_Add(gtest
@@ -31,8 +34,10 @@ file(GLOB SRCS *_test.cc)
 
 add_executable(lib_test ${SRCS})
 target_include_directories(lib_test PRIVATE ${GTEST_INCLUDE_DIRS})
-target_link_libraries(lib_test ${GTEST_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} aptc-private)
+target_link_libraries(lib_test ${GTEST_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} aptc-private gcov)
 add_dependencies(lib_test ${GTEST_DEPENDENCIES} ${GMOCK_DEPENDENCIES})
 
 add_test(NAME lib
          COMMAND lib_test)
+
+setup_target_for_coverage(check lib_test coverage)

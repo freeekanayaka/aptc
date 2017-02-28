@@ -17,6 +17,10 @@ endif()
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/CMake/")
 set(CMAKE_CXX_FLAGS "-Wall -std=c++11 -std=gnu++11")
 
+if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
+   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 -fprofile-arcs -ftest-coverage")
+endif()
+
 find_package(AptPkg REQUIRED)
 
 configure_file(CMake/config.h.in ${PROJECT_BINARY_DIR}/include/config.h)
