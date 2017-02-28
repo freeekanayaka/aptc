@@ -40,4 +40,4 @@ add_dependencies(lib_test ${GTEST_DEPENDENCIES} ${GMOCK_DEPENDENCIES})
 add_test(NAME lib
          COMMAND lib_test)
 
-setup_target_for_coverage(check lib_test coverage)
+setup_target_for_coverage(coverage lib_test coverage)

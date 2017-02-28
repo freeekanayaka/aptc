@@ -12,8 +12,7 @@
 
 // A list of sample arguments
 std::vector<CommandLine::Args> SampleArgs = {
-  CommandLine::MakeArgs('h', "help", "help", 0),
-  CommandLine::MakeArgs(0, NULL, NULL, 0),
+  CommandLine::MakeArgs('f', "foo", "foo", 0),
 };
 
 // A list of sample commands
@@ -37,7 +36,7 @@ TEST(RunCommandLineTest, InvalidArgument) {
   testing::internal::CaptureStderr();
 
   const char argc = 2;
-  const char *argv[] = {"aptc", "--foo"};
+  const char *argv[] = {"aptc", "--bar"};
 
   EXPECT_EQ(RunCommandLine(SampleArgs, SampleCmds, SampleHelpTemplate, argc, argv),
 	    1);
@@ -61,6 +60,26 @@ TEST(RunCommandLineTest, HelpFlagOn) {
 
   EXPECT_THAT(testing::internal::GetCapturedStdout(),
 	      testing::HasSubstr("Usage: foo"));
+
+  _config->Clear();
+  _error->Discard();
+}
+
+// If version flag is passed, the version text is printed on standard output.
+TEST(RunCommandLineTest, VerboseFlagOn) {
+  testing::internal::CaptureStdout();
+
+  const char argc = 2;
+  const char *argv[] = {"aptc", "-v"};
+
+  EXPECT_EQ(RunCommandLine(SampleArgs, SampleCmds, SampleHelpTemplate, argc, argv),
+	    0);
+
+  auto Output = testing::internal::GetCapturedStdout();
+  EXPECT_THAT(Output, testing::StartsWith("aptc "));
+
+  EXPECT_THAT(Output,
+	      testing::Not(testing::HasSubstr("Usage: foo")));
 
   _config->Clear();
   _error->Discard();
@@ -127,6 +146,23 @@ TEST(RunCommandLineTest, ValidCommand) {
   EXPECT_EQ(RunCommandLine(SampleArgs, SampleCmds, SampleHelpTemplate, argc, argv),
 	    0);
 
+  EXPECT_EQ(testing::internal::GetCapturedStdout(), "");
+
+  _config->Clear();
+  _error->Discard();
+}
+
+// If valid argument is specified, it's saved in the config.
+TEST(RunCommandLineTest, ValidArgument) {
+  testing::internal::CaptureStdout();
+
+  const char argc = 3;
+  const char *argv[] = {"aptc", "--foo", "succeed"};
+
+  EXPECT_EQ(RunCommandLine(SampleArgs, SampleCmds, SampleHelpTemplate, argc, argv),
+	    0);
+
+  EXPECT_TRUE(_config->FindB("foo"));
   EXPECT_EQ(testing::internal::GetCapturedStdout(), "");
 
   _config->Clear();

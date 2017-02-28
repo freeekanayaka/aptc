@@ -20,33 +20,50 @@ int RunCommandLine(std::vector<CommandLine::Args> &Args,
   // Having no commands is not an option.
   assert(!CmdsWithHelp.empty() && CmdsWithHelp[0].Match != nullptr);
 
+  // Automatically add the 'help' and 'version' arguments and terminate the list
+  // with a "NULL" argument (this is expected by apt-pkg/contrib/cmndline.cc).
+  Args.push_back(std::move(CommandLine::MakeArgs('h', "help", "help", 0)));
+  Args.push_back(std::move(CommandLine::MakeArgs('v', "version", "version", 0)));
+  Args.push_back(std::move(CommandLine::MakeArgs(0, NULL, NULL, 0)));
+
   CommandLine CmdL(Args.data(), _config);
 
-  if (CmdL.Parse(argc, argv) == false) {
+  // If invalid arguments are given, print the help and fail.
+  if (!CmdL.Parse(argc, argv)) {
     _error->DumpErrors();
     return 1;
   };
 
-  if (_config->FindB("help") == true) {
+  // If '-h' or '--help' is passed, print the help and succeed.
+  if (_config->FindB("help")) {
     std::cout << HelpFormat(HelpTemplate, CmdsWithHelp);
     return 0;
   };
 
+  // If '-v' or '--version' is passed, print the version and succeed.
+  if (_config->FindB("version")) {
+    std::cout << HelpVersion();
+    return 0;
+  };
+
+  // If no sub-command is given, print the help and fail.
   if (CmdL.FileSize() == 0) {
     std::cout << HelpFormat(HelpTemplate, CmdsWithHelp);
     return 1;
   }
 
+  // If the given sub-command is 'help', print the help and succeed.
   if (strcmp(CmdL.FileList[0], "help") == 0) {
     std::cout << HelpFormat(HelpTemplate, CmdsWithHelp);
     return 0;
   }
 
-   std::vector<CommandLine::Dispatch> Cmds;
-   for (auto const& cmd : CmdsWithHelp) Cmds.push_back({cmd.Match, cmd.Handler});
+  // Dispatch the sub-command.
+  std::vector<CommandLine::Dispatch> Cmds;
+  for (auto const& cmd : CmdsWithHelp) Cmds.push_back({cmd.Match, cmd.Handler});
 
-  if (CmdL.DispatchArg(Cmds.data()) == false) {
-    if (_error->PendingError() == true) {
+  if (!CmdL.DispatchArg(Cmds.data())) {
+    if (_error->PendingError()) {
       _error->DumpErrors();
     }
     return 100;

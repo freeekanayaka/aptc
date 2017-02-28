@@ -4,8 +4,7 @@
 int main(const int argc, const char *argv[]) {
 
   std::vector<CommandLine::Args> Args = {
-    CommandLine::MakeArgs('h', "help", "help", 0),
-    CommandLine::MakeArgs(0, NULL, NULL, 0),
+    CommandLine::MakeArgs('r', "rootfs", "rootfs", 0),
   };
 
   std::vector<DispatchWithHelp> Cmds = {
