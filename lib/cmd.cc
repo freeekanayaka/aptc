@@ -11,22 +11,18 @@
 
 #include "cmd.h"
 
-// Run the given command line.
-int RunCommandLine(std::vector<CommandLine::Args> &Args,
-		   std::vector<DispatchWithHelp> &CmdsWithHelp,
-		   std::string &HelpTemplate,
-		   const int argc, const char *argv[]) {
+int RunCommandLine(CommandLineInfo &Info, const int argc, const char *argv[]) {
 
   // Having no commands is not an option.
-  assert(!CmdsWithHelp.empty() && CmdsWithHelp[0].Match != nullptr);
+  assert(!Info.Cmds.empty() && Info.Cmds[0].Match != nullptr);
 
   // Automatically add the 'help' and 'version' arguments and terminate the list
   // with a "NULL" argument (this is expected by apt-pkg/contrib/cmndline.cc).
-  Args.push_back(std::move(CommandLine::MakeArgs('h', "help", "help", 0)));
-  Args.push_back(std::move(CommandLine::MakeArgs('v', "version", "version", 0)));
-  Args.push_back(std::move(CommandLine::MakeArgs(0, NULL, NULL, 0)));
+  Info.Args.push_back(std::move(CommandLine::MakeArgs('h', "help", "help", 0)));
+  Info.Args.push_back(std::move(CommandLine::MakeArgs('v', "version", "version", 0)));
+  Info.Args.push_back(std::move(CommandLine::MakeArgs(0, NULL, NULL, 0)));
 
-  CommandLine CmdL(Args.data(), _config);
+  CommandLine CmdL(Info.Args.data(), _config);
 
   // If invalid arguments are given, print the help and fail.
   if (!CmdL.Parse(argc, argv)) {
@@ -36,7 +32,7 @@ int RunCommandLine(std::vector<CommandLine::Args> &Args,
 
   // If '-h' or '--help' is passed, print the help and succeed.
   if (_config->FindB("help")) {
-    std::cout << HelpFormat(HelpTemplate, CmdsWithHelp);
+    std::cout << HelpFormat(Info.HelpTemplate, Info.Cmds);
     return 0;
   };
 
@@ -48,36 +44,38 @@ int RunCommandLine(std::vector<CommandLine::Args> &Args,
 
   // If no sub-command is given, print the help and fail.
   if (CmdL.FileSize() == 0) {
-    std::cout << HelpFormat(HelpTemplate, CmdsWithHelp);
+    std::cout << HelpFormat(Info.HelpTemplate, Info.Cmds);
     return 1;
   }
 
   // If the given sub-command is 'help', print the help and succeed.
   if (strcmp(CmdL.FileList[0], "help") == 0) {
-    std::cout << HelpFormat(HelpTemplate, CmdsWithHelp);
+    std::cout << HelpFormat(Info.HelpTemplate, Info.Cmds);
     return 0;
   }
 
-  // Dispatch the sub-command.
-  std::vector<CommandLine::Dispatch> Cmds;
-  for (auto const& cmd : CmdsWithHelp) Cmds.push_back({cmd.Match, cmd.Handler});
+  // Run the given initialization hook.
+  if (Info.Init == nullptr) {
+    Info.Init = [](CommandLine &){return true;};
+  }
 
-  if (!CmdL.DispatchArg(Cmds.data())) {
-    if (_error->PendingError()) {
-      _error->DumpErrors();
-    }
+  // Convert the DispatchWithHelp vector to a Dispatch one.
+  std::vector<CommandLine::Dispatch> Cmds;
+  for (auto const& cmd : Info.Cmds) Cmds.push_back({cmd.Match, cmd.Handler});
+
+  // Run the init hook and dispatch the sub-command.
+  if (!Info.Init(CmdL) || !CmdL.DispatchArg(Cmds.data())) {
+    _error->DumpErrors();
     return 100;
   };
 
    return 0;
 }
 
-// Return a line with information about the binary version and architecture.
 const std::string HelpVersion() {
   return PACKAGE " " PACKAGE_VERSION " (" COMMON_ARCH ")\n";
 }
 
-// Return help text for all available commands.
 const std::string HelpCommands(std::vector<DispatchWithHelp> const &Cmds) {
 
   std::string Help = "Available commands:\n";
@@ -89,8 +87,6 @@ const std::string HelpCommands(std::vector<DispatchWithHelp> const &Cmds) {
   return Help;
 }
 
-// Format a help template replacing the %VERSION% and %COMMAND% placeholder
-// with the appropriate text.
 const std::string HelpFormat(const std::string &Template,
 			     std::vector<DispatchWithHelp> const &Cmds) {
   std::regex Version("%VERSION%");

@@ -1,4 +1,7 @@
+#include <apt-pkg/configuration.h>
+
 #include "cmd.h"
+#include "init.h"
 #include "install.h"
 
 int main(const int argc, const char *argv[]) {
@@ -20,5 +23,16 @@ int main(const int argc, const char *argv[]) {
     "\n"
     "See aptc(8)\n";
 
-  return RunCommandLine(Args, Cmds, HelpTemplate, argc, argv);
+  // Set the default configuration values before parsing the command line
+  // arguments, since these take precedence.
+  DefaultConfig(*_config);
+
+  // Initialization hook.
+  auto Init = [](CommandLine &){
+    return InitDirectories(*_config);
+  };
+
+  CommandLineInfo Info = {Args, Cmds, HelpTemplate, Init};
+  //!
+  return RunCommandLine(Info, argc, argv);
 }

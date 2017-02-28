@@ -10,6 +10,9 @@
 
 #include "cmd.h"
 
+#include "fixture-config.h"
+#include "fixture-home.h"
+
 // A list of sample arguments
 std::vector<CommandLine::Args> SampleArgs = {
   CommandLine::MakeArgs('f', "foo", "foo", 0),
@@ -31,142 +34,151 @@ std::string SampleHelpTemplate =
   "\n"
   "See foo(8)\n";
 
+class RunCommandLineTest : public testing::Test {
+protected:
+  virtual void SetUp() {
+    Config.SetUp();
+    Home.SetUp();
+  }
+  virtual void TearDown() {
+    Config.TearDown();
+    Home.TearDown();
+  }
+  FixtureConfig Config;
+  FixtureHome Home;
+};
+
 // If invalid arguments are passed, an error is printed.
-TEST(RunCommandLineTest, InvalidArgument) {
+TEST_F(RunCommandLineTest, InvalidArgument) {
   testing::internal::CaptureStderr();
 
+  CommandLineInfo Info = {SampleArgs, SampleCmds, SampleHelpTemplate, nullptr};
   const char argc = 2;
   const char *argv[] = {"aptc", "--bar"};
 
-  EXPECT_EQ(RunCommandLine(SampleArgs, SampleCmds, SampleHelpTemplate, argc, argv),
-	    1);
+  EXPECT_EQ(RunCommandLine(Info, argc, argv), 1);
 
   EXPECT_THAT(testing::internal::GetCapturedStderr(),
 	      testing::HasSubstr("E: Command line"));
 
-  _config->Clear();
-  _error->Discard();
 }
 
 // If help flag is passed, the help text is printed on standard output.
-TEST(RunCommandLineTest, HelpFlagOn) {
+TEST_F(RunCommandLineTest, HelpFlagOn) {
   testing::internal::CaptureStdout();
 
+  CommandLineInfo Info = {SampleArgs, SampleCmds, SampleHelpTemplate, nullptr};
   const char argc = 2;
   const char *argv[] = {"aptc", "-h"};
 
-  EXPECT_EQ(RunCommandLine(SampleArgs, SampleCmds, SampleHelpTemplate, argc, argv),
-	    0);
+  EXPECT_EQ(RunCommandLine(Info, argc, argv), 0);
 
   EXPECT_THAT(testing::internal::GetCapturedStdout(),
 	      testing::HasSubstr("Usage: foo"));
-
-  _config->Clear();
-  _error->Discard();
 }
 
 // If version flag is passed, the version text is printed on standard output.
-TEST(RunCommandLineTest, VerboseFlagOn) {
+TEST_F(RunCommandLineTest, VerboseFlagOn) {
   testing::internal::CaptureStdout();
 
+  CommandLineInfo Info = {SampleArgs, SampleCmds, SampleHelpTemplate, nullptr};
   const char argc = 2;
   const char *argv[] = {"aptc", "-v"};
 
-  EXPECT_EQ(RunCommandLine(SampleArgs, SampleCmds, SampleHelpTemplate, argc, argv),
-	    0);
+  EXPECT_EQ(RunCommandLine(Info, argc, argv), 0);
 
   auto Output = testing::internal::GetCapturedStdout();
   EXPECT_THAT(Output, testing::StartsWith("aptc "));
 
   EXPECT_THAT(Output,
 	      testing::Not(testing::HasSubstr("Usage: foo")));
-
-  _config->Clear();
-  _error->Discard();
 }
 
 // If no command is specified, the help text is printed on standard output.
-TEST(RunCommandLineTest, NoCommand) {
+TEST_F(RunCommandLineTest, NoCommand) {
   testing::internal::CaptureStdout();
 
+  CommandLineInfo Info = {SampleArgs, SampleCmds, SampleHelpTemplate, nullptr};
   const char argc = 1;
   const char *argv[] = {"aptc"};
 
-  EXPECT_EQ(RunCommandLine(SampleArgs, SampleCmds, SampleHelpTemplate, argc, argv),
-	    1);
+  EXPECT_EQ(RunCommandLine(Info, argc, argv), 1);
 
   EXPECT_THAT(testing::internal::GetCapturedStdout(),
 	      testing::HasSubstr("Usage: foo"));
-
-  _config->Clear();
-  _error->Discard();
 }
 
 // If the special command 'help' is passed, the help text is printed.
-TEST(RunCommandLineTest, HelpCommand) {
+TEST_F(RunCommandLineTest, HelpCommand) {
   testing::internal::CaptureStdout();
 
+  CommandLineInfo Info = {SampleArgs, SampleCmds, SampleHelpTemplate, nullptr};
   const char argc = 2;
   const char *argv[] = {"aptc", "help"};
 
-  EXPECT_EQ(RunCommandLine(SampleArgs, SampleCmds, SampleHelpTemplate, argc, argv),
-	    0);
+  EXPECT_EQ(RunCommandLine(Info, argc, argv), 0);
 
   EXPECT_THAT(testing::internal::GetCapturedStdout(),
 	      testing::HasSubstr("Usage: foo"));
-
-  _config->Clear();
-  _error->Discard();
 }
 
 // If an invalid command is specified, an error is printed.
-TEST(RunCommandLineTest, InvalidCommand) {
+TEST_F(RunCommandLineTest, InvalidCommand) {
   testing::internal::CaptureStderr();
 
   const char argc = 2;
   const char *argv[] = {"aptc", "foo"};
 
-  EXPECT_EQ(RunCommandLine(SampleArgs, SampleCmds, SampleHelpTemplate, argc, argv),
-	    100);
+  CommandLineInfo Info = {SampleArgs, SampleCmds, SampleHelpTemplate, nullptr};
+  EXPECT_EQ(RunCommandLine(Info, argc, argv), 100);
 
   EXPECT_THAT(testing::internal::GetCapturedStderr(),
 	      testing::HasSubstr("E: Invalid operation foo"));
-
-  _config->Clear();
-  _error->Discard();
 }
 
-// If valid command is specified, it's executated.
-TEST(RunCommandLineTest, ValidCommand) {
+// If an init hook is specified and it returns false, an error is printed.
+TEST_F(RunCommandLineTest, FailedInit) {
+  testing::internal::CaptureStderr();
+
+  const char argc = 2;
+  const char *argv[] = {"aptc", "succeed"};
+
+  auto SampleInit = [](CommandLine &){
+    _error->Error("Boom");
+    return false;
+  };
+  CommandLineInfo Info = {SampleArgs, SampleCmds, SampleHelpTemplate, SampleInit};
+  EXPECT_EQ(RunCommandLine(Info, argc, argv), 100);
+
+  EXPECT_THAT(testing::internal::GetCapturedStderr(),
+	      testing::HasSubstr("E: Boom"));
+}
+
+// If valid command is specified, it's executed.
+TEST_F(RunCommandLineTest, ValidCommand) {
   testing::internal::CaptureStdout();
 
   const char argc = 2;
   const char *argv[] = {"aptc", "succeed"};
 
-  EXPECT_EQ(RunCommandLine(SampleArgs, SampleCmds, SampleHelpTemplate, argc, argv),
-	    0);
+  CommandLineInfo Info = {SampleArgs, SampleCmds, SampleHelpTemplate, nullptr};
+  EXPECT_EQ(RunCommandLine(Info, argc, argv), 0);
 
   EXPECT_EQ(testing::internal::GetCapturedStdout(), "");
-
-  _config->Clear();
-  _error->Discard();
 }
 
 // If valid argument is specified, it's saved in the config.
-TEST(RunCommandLineTest, ValidArgument) {
+TEST_F(RunCommandLineTest, ValidArgument) {
   testing::internal::CaptureStdout();
 
   const char argc = 3;
   const char *argv[] = {"aptc", "--foo", "succeed"};
 
-  EXPECT_EQ(RunCommandLine(SampleArgs, SampleCmds, SampleHelpTemplate, argc, argv),
-	    0);
+  CommandLineInfo Info = {SampleArgs, SampleCmds, SampleHelpTemplate, nullptr};
+  EXPECT_EQ(RunCommandLine(Info, argc, argv), 0);
 
   EXPECT_TRUE(_config->FindB("foo"));
   EXPECT_EQ(testing::internal::GetCapturedStdout(), "");
-
-  _config->Clear();
-  _error->Discard();
 }
 
 // The version help line contains the version and architecture.

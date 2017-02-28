@@ -30,7 +30,7 @@ find_path(GMOCK_INCLUDE_DIRS NAMES gmock/gmock.h)
 message(STATUS "Found GTest at ${GTEST_ROOT}, headers at ${GTEST_INCLUDE_DIRS}")
 message(STATUS "Found GMock at ${GMOCK_ROOT}, headers at ${GMOCK_INCLUDE_DIRS}")
 
-file(GLOB SRCS *_test.cc)
+file(GLOB SRCS *.cc)
 
 add_executable(lib_test ${SRCS})
 target_include_directories(lib_test PRIVATE ${GTEST_INCLUDE_DIRS})
