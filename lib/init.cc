@@ -1,35 +1,16 @@
-#include <apt-pkg/error.h>
+#ifndef APTC_INIT_H_
+#define APTC_INIT_H_
 
-#include "config.h"
-#include "init.h"
-#include "fs.h"
+#include <apt-pkg/cmndline.h>
+#include <apt-pkg/configuration.h>
+#include <apt-pkg/fileutl.h>
 
-void DefaultConfig(Configuration &Cnf) {
+#include <fs.h>
 
-  // XXX: There's a fair amount of duplication with apt-pkg/init.cc, here
-  //      some reactoring in libapt itself would help reducing it.
-
-  // General APT things
-  Cnf.CndSet("APT::Architecture", COMMON_ARCH);
-  Cnf.CndSet("APT::Install-Recommends", false);
-  Cnf.CndSet("APT::Install-Suggests", false);
-  Cnf.CndSet("Dir", CurrentWorkingDirectory());
-
-  // State
-  Cnf.CndSet("Dir::State", UserAptcData());
-  Cnf.CndSet("Dir::State::lists", "lists/");
-
-  // Cache
-  Cnf.CndSet("Dir::Cache", UserAptcData());
-  Cnf.CndSet("Dir::Cache::archives", "archives/");
-  Cnf.CndSet("Dir::Cache::srcpkgcache", "srcpkgcache.bin");
-  Cnf.CndSet("Dir::Cache::pkgcache", "pkgcache.bin");
+// Execute the 'init' sub-command.
+bool DoInit(CommandLine &CmdL) {
+  return MakeFile(_config->FindFile("Dir::State::status")) &&
+         MakeFile(_config->FindFile("Dir::Etc::sourcelist"));
 }
 
-bool InitDirectories(Configuration &Cnf) {
-  auto Data = Cnf.Find("Dir::State");
-  if (!MakeDirectories(Data)) {
-    return _error->Error("Failed to create data directory '%s'", Data.c_str());
-  };
-  return true;
-}
+#endif // APTC_INIT_H_

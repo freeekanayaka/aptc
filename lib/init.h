@@ -3,10 +3,7 @@
 
 #include <apt-pkg/cmndline.h>
 
-// Initialize the given configuration with sane defaults.
-void DefaultConfig(Configuration &Cnf);
-
-// Initialize the directory structure for the given configuration.
-bool InitDirectories(Configuration &Cnf);
+// Execute the 'init' sub-command.
+bool DoInit(CommandLine &CmdL);
 
 #endif // APTC_INIT_H_

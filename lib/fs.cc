@@ -3,20 +3,21 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/param.h>
+#include <sys/stat.h>
 #include <pwd.h>
+#include <libgen.h>
 
+#include <vector>
 #include <string>
+#include <fstream>
 
-// Trim trailing slash if present
-std::string NoTrailingSlash(std::string Path) {
-  Path.erase(Path.find_last_not_of('/') + 1);
-  return Path;
-}
+#include <apt-pkg/error.h>
+#include <apt-pkg/fileutl.h>
 
 std::string CurrentWorkingDirectory() {
   char Path[MAXPATHLEN];
   getcwd(Path, MAXPATHLEN);
-  return NoTrailingSlash(Path);
+  return Path;
 }
 
 // Helper returning the user home directory.
@@ -25,7 +26,7 @@ std::string UserHome() {
   if ((Path = getenv("HOME")) == NULL) {
     Path = getpwuid(getuid())->pw_dir; // LCOV_EXCL_LINE (XXX use gmock to test this?)
   }
-  return NoTrailingSlash(Path);
+  return Path;
 }
 
 std::string UserAptcData() {
@@ -39,14 +40,27 @@ std::string MakeTemporaryDirectory() {
 
 }
 
-bool MakeDirectories(std::string Path) {
-  // XXX Consider adding a C++ implementation instead.
-  auto Mkdir = "mkdir -p " + Path;
-  return system(Mkdir.c_str()) == 0;
-}
-
 bool RemoveDirectory(std::string Path) {
   // XXX Consider adding a C++ implementation instead.
   auto Rm = "rm -rf " + Path;
   return system(Rm.c_str()) == 0;
+}
+
+bool MakeFile(std::string Path) {
+  // Create the parent directory and its ancestors.
+  std::string Parent = Path; // copy, since dirname() mutates it.
+  Parent = dirname((char*)Parent.c_str());
+  if (!CreateDirectory("/", Parent)) {
+      return _error->Error("Failed to create directory '%s'", Parent.c_str()); // LCOV_EXCL_LINE
+  }
+
+  std::fstream Stream;
+
+  Stream.open(Path, std::ios::out);
+  if (Stream.fail()) {
+    return _error->Error("Failed to create file '%s'", Path.c_str()); // LCOV_EXCL_LINE
+  }
+  Stream.close();
+
+  return true;
 }
