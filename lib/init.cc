@@ -6,9 +6,11 @@
 #include <apt-pkg/fileutl.h>
 
 #include <fs.h>
+#include <log.h>
 
 // Execute the 'init' sub-command.
 bool DoInit(CommandLine &CmdL) {
+  Debug("Initializing rootfs");
   return MakeFile(_config->FindFile("Dir::State::status")) &&
          MakeFile(_config->FindFile("Dir::Etc::sourcelist"));
 }

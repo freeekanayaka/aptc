@@ -6,6 +6,7 @@
 #include "config.h"
 #include "state.h"
 #include "fs.h"
+#include "log.h"
 
 void DefaultConfig(Configuration &Cnf) {
 
@@ -70,8 +71,11 @@ bool EnsureDataDirectories(Configuration &Cnf) {
   };
 
   for (auto const& Path : Paths) {
-    if (!CreateDirectory("/", Path)) {
-      return _error->Error("Failed to create directory '%s'", Path.c_str());
+    if(!DirectoryExists(Path)) {
+      Debug("Create data directory '%s'", Path.c_str());
+      if (!CreateDirectory("/", Path)) {
+	return _error->Error("Failed to create directory '%s'", Path.c_str());
+      }
     }
   }
 
@@ -89,6 +93,8 @@ void RootFsConfig(Configuration &Cnf) {
     // If the given rootfs is not absolute, prepend the working directory.
     RootFs = flCombine(Cwd, RootFs);
   }
+
+  Debug("Setting rootfs to '%s'", RootFs.c_str());
   Cnf.Set("rootfs", RootFs);
 
   // Set the dpkg status file relative to rootfs.
@@ -117,6 +123,7 @@ bool CheckDpkgStatus(CommandLine &CmdL, Configuration &Cnf) {
       return _error->Error("No dpkg status found: '%s'. Did you run 'init'?",
 			   DpkgStatus.c_str());
   }
+  Debug("Found dpkg status file at '%s'", DpkgStatus.c_str());
 
   return true;
 }

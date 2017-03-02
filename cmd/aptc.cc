@@ -13,6 +13,7 @@ int main(const int argc, const char *argv[]) {
 
   std::vector<CommandLine::Args> Args = {
     CommandLine::MakeArgs('r', "rootfs", "rootfs", CommandLine::HasArg),
+    CommandLine::MakeArgs('o', "option", 0, CommandLine::ArbItem),
   };
 
   std::vector<DispatchWithHelp> Cmds = {
