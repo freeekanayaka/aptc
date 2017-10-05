@@ -1,7 +1,7 @@
 find_package(Threads REQUIRED)
 
-set(GTEST_ROOT "/usr/src/gtest")
-set(GMOCK_ROOT "/usr/src/gmock")
+set(GTEST_ROOT "/usr/src/googletest/googletest")
+set(GMOCK_ROOT "/usr/src/googletest/googlemock")
 
 set(LCOV_REMOVE_EXTRA "'test/*'")
 

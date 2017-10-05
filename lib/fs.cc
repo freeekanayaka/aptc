@@ -14,6 +14,8 @@
 #include <apt-pkg/error.h>
 #include <apt-pkg/fileutl.h>
 
+#include "log.h"
+
 std::string CurrentWorkingDirectory() {
   char Path[MAXPATHLEN];
   getcwd(Path, MAXPATHLEN);
@@ -47,6 +49,12 @@ bool RemoveDirectory(std::string Path) {
 }
 
 bool MakeFile(std::string Path) {
+  if (FileExists(Path)) {
+    return true; // LCOV_EXCL_LINE
+  }
+
+  Debug("Creating empty file '%s'", Path.c_str());
+
   // Create the parent directory and its ancestors.
   std::string Parent = Path; // copy, since dirname() mutates it.
   Parent = dirname((char*)Parent.c_str());
@@ -62,5 +70,14 @@ bool MakeFile(std::string Path) {
   }
   Stream.close();
 
+  return true;
+}
+
+bool CreateParentDirectory(std::string Path) {
+  std::string Parent = Path; // copy, since dirname() mutates it.
+  Parent = dirname((char*)Parent.c_str());
+  if (!CreateDirectory("/", Parent)) {
+      return _error->Error("Failed to create directory '%s'", Parent.c_str()); // LCOV_EXCL_LINE
+  }
   return true;
 }

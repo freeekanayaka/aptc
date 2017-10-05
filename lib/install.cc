@@ -2,7 +2,7 @@
 
 #include "install.h"
 
-bool DoInstall(CommandLine &) {
+/*bool DoInstall(CommandLine &) {
   std::cout << "Install!" << std::endl;
   return true;
-}
+  }*/

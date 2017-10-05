@@ -65,7 +65,7 @@ int RunCommandLine(CommandLineInfo &Info, const int argc, const char *argv[]) {
 
   // Run the init hook and dispatch the sub-command.
   if (!Info.Init(CmdL) || !CmdL.DispatchArg(Cmds.data())) {
-    _error->DumpErrors();
+    _error->DumpErrors(GlobalError::NOTICE);
     return 100;
   };
 

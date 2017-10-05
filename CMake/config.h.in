@@ -6,3 +6,9 @@
 
 /* The version number string */
 #define PACKAGE_VERSION "${PACKAGE_VERSION}"
+
+/* The directory where the APTc binaries live */
+#define APTC_BINDIR "${APTC_BINDIR}"
+
+/* The directory where the APTc private libraries live */
+#define APTC_LIBDIR "${APTC_LIBDIR}"

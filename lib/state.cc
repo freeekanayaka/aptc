@@ -32,10 +32,11 @@ void DefaultConfig(Configuration &Cnf) {
   // State
   Cnf.Set("Dir::Log", UserAptcData());
 
-  // Configuration
-  Cnf.Set("Dir::Bin::methods", "/usr/lib/apt/methods");
-  Cnf.CndSet("Dir::Etc::trusted", "/etc/apt/trusted.gpg");
-  Cnf.CndSet("Dir::Etc::trustedparts","/etc/apt/trusted.gpg.d");
+  // Configuration, defaults to system settings.
+  Cnf.Set("Dir::Etc::sourcelist", "sources.list");
+  Cnf.Set("Dir::Etc::trusted", "trusted.gpg");
+  Cnf.Set("Dir::Etc::trustedparts", "trusted.gpg.d");
+  Cnf.Set("Dir::Bin::methods", "/usr/lib/apt/methods"); // Use the host methods
 
   Cnf.Set("Acquire::IndexTargets::deb::Packages::MetaKey", "$(COMPONENT)/binary-$(ARCHITECTURE)/Packages");
   Cnf.Set("Acquire::IndexTargets::deb::Packages::flatMetaKey", "Packages");
@@ -60,14 +61,22 @@ void DefaultConfig(Configuration &Cnf) {
   Cnf.Set("Acquire::Changelogs::URI::Origin::Ubuntu", "http://changelogs.ubuntu.com/changelogs/pool/@CHANGEPATH@/changelog");
   Cnf.Set("Acquire::Changelogs::URI::Origin::Ultimedia", "http://packages.ultimediaos.com/changelogs/pool/@CHANGEPATH@/changelog.txt");
   Cnf.Set("Acquire::Changelogs::AlwaysOnline::Origin::Ubuntu", true);
+
+  // Tweaks specific to APTc
+  Cnf.Set("Dir::Bin::dpkg", APTC_BINDIR "/dpkgc");
 }
 
 bool EnsureDataDirectories(Configuration &Cnf) {
+  auto RootFs = Cnf.Find("rootfs");
   auto Paths = {
       Cnf.FindDir("Dir::State"),
       Cnf.FindDir("Dir::State::lists"),
       Cnf.FindDir("Dir:Cache"),
       Cnf.FindDir("Dir::Cache::archives"),
+      flCombine(RootFs, "var/log"),
+      flCombine(RootFs, "var/lib/dpkg"),
+      flCombine(RootFs, "var/lib/dpkg/updates"),
+      flCombine(RootFs, "var/lib/dpkg/info"),
   };
 
   for (auto const& Path : Paths) {
@@ -100,21 +109,30 @@ void RootFsConfig(Configuration &Cnf) {
   // Set the dpkg status file relative to rootfs.
   Cnf.Set("Dir::State::status", flCombine(RootFs, "var/lib/dpkg/status"));
 
-  Cnf.Set("Dir::Etc", flCombine(RootFs, "etc/apt/"));
-  Cnf.Set("Dir::Etc::sourcelist","sources.list");
-  Cnf.Set("Dir::Etc::sourceparts","sources.list.d");
-  Cnf.Set("Dir::Etc::main","apt.conf");
-  Cnf.Set("Dir::Etc::parts","apt.conf.d");
-  Cnf.Set("Dir::Etc::preferences","preferences");
-  Cnf.Set("Dir::Etc::preferencesparts","preferences.d");
+  // Conditionally set APT configuration files, so we don't overwrite user
+  // preferences.
+  Cnf.CndSet("Dir::Etc", flCombine(RootFs, "etc/apt/"));
+  Cnf.CndSet("Dir::Etc::sourcelist","sources.list");
+  Cnf.CndSet("Dir::Etc::sourceparts","sources.list.d");
+  Cnf.CndSet("Dir::Etc::main","apt.conf");
+  Cnf.CndSet("Dir::Etc::parts","apt.conf.d");
+  Cnf.CndSet("Dir::Etc::preferences","preferences");
+  Cnf.CndSet("Dir::Etc::preferencesparts","preferences.d");
+
+  // Set dpkg options
+  Cnf.Set("DPkg::Options::1", "--force-not-root");
+  Cnf.Set("DPkg::Options::2", "--root=" + RootFs);
+  Cnf.Set("DPkg::Options::3", "--force-script-chrootless");
+  Cnf.Set("DPkg::Options::4", "--force-bad-path");
+  Cnf.Set("DPkg::Options::5", "--log=" + flCombine(RootFs, "var/log/dpkg.log"));
 }
 
 bool CheckDpkgStatus(CommandLine &CmdL, Configuration &Cnf) {
 
   auto DpkgStatus = Cnf.FindFile("Dir::State::status");
 
-  // If we're going to run the init command, don't bother to check if the
-  // dpkg status file exists.
+  // If we're going to run the init command, we check that the dpkg status
+  // file does *not* exist.
   if (strcmp(CmdL.FileList[0], "init") == 0) {
     return true;
   }
@@ -126,4 +144,75 @@ bool CheckDpkgStatus(CommandLine &CmdL, Configuration &Cnf) {
   Debug("Found dpkg status file at '%s'", DpkgStatus.c_str());
 
   return true;
+}
+
+bool SuiteIsUbuntu(std::string Suite) {
+  return (Suite == "xenial" ||
+	  Suite == "yakkety" ||
+	  Suite == "zesty" ||
+	  Suite == "artful" ||
+	  Suite == "bionic");
+}
+
+bool SuiteIsDebian(std::string Suite) {
+  return (Suite == "stable" ||
+	  Suite == "testing" ||
+	  Suite == "unstable" ||
+	  Suite == "sid");
+}
+
+bool EnsureTrustedFile(Configuration &Cnf, std::string Suite) {
+
+  auto Target = Cnf.FindFile("Dir::Etc::trusted");
+
+  if (FileExists(Target)) {
+    return true;
+  }
+
+  std::string Source;
+
+  if (SuiteIsUbuntu(Suite))
+    Source = "/usr/share/keyrings/ubuntu-archive-keyring.gpg";
+  else if (SuiteIsDebian(Suite))
+    Source = "/usr/share/keyrings/debian-archive-keyring.gpg";
+  else
+    return _error->Error("Unknown suite '%s'", Suite.c_str());
+  
+
+  FileFd In;
+  FileFd Out;
+
+  Debug("Copying keyring file from '%s' to '%s'", Source.c_str(), Target.c_str());
+
+  return (CreateParentDirectory(Target) &&
+	  In.Open(Source, FileFd::ReadOnly) &&
+	  Out.Open(Target, FileFd::WriteOnly | FileFd::Create) &&
+	  CopyFile(In, Out) &&
+	  In.Close() &&
+	  Out.Close());
+}
+
+bool EnsureSourcesListFile(Configuration &Cnf, std::string Suite, std::string Mirror) {
+
+  auto Target = Cnf.FindFile("Dir::Etc::sourcelist");
+
+  if (FileExists(Target)) {
+    return true;
+  }
+
+  Debug("Copying sources.list file '%s'", Target.c_str());
+
+  FileFd Out;
+
+  if (Mirror == "") {
+    if (SuiteIsUbuntu(Suite))
+      Mirror = "http://archive.ubuntu.com/ubuntu";
+    else
+      Mirror = "http://ftp.debian.org/debian";
+  }
+  std::string DebLine = "deb " + Mirror + " " + Suite + " main\n";
+
+  return (Out.Open(Target, FileFd::WriteOnly | FileFd::Create) &&
+	  Out.Write(DebLine.c_str(), DebLine.length()) &&
+	  Out.Close());
 }

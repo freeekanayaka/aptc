@@ -20,4 +20,7 @@ bool RemoveDirectory(std::string Path);
 // created automatically.
 bool MakeFile(std::string Path);
 
+// Create the parent directory for the given path
+bool CreateParentDirectory(std::string Path);
+
 #endif // APTC_FS_H_

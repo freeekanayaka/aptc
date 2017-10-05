@@ -13,6 +13,7 @@ int main(const int argc, const char *argv[]) {
 
   std::vector<CommandLine::Args> Args = {
     CommandLine::MakeArgs('r', "rootfs", "rootfs", CommandLine::HasArg),
+    CommandLine::MakeArgs('c', "config-file", 0, CommandLine::ConfigFile),
     CommandLine::MakeArgs('o', "option", 0, CommandLine::ArbItem),
   };
 
@@ -38,9 +39,9 @@ int main(const int argc, const char *argv[]) {
   // Initialization hook.
   auto Init = [](CommandLine &CmdL){
     RootFsConfig(*_config);
-    return pkgInitSystem(*_config, _system) &&
-           EnsureDataDirectories(*_config) &&
-           CheckDpkgStatus(CmdL, *_config);
+    return (pkgInitSystem(*_config, _system) &&
+	    EnsureDataDirectories(*_config) &&
+	    CheckDpkgStatus(CmdL, *_config));
   };
 
   CommandLineInfo Info = {Args, Cmds, HelpTemplate, Init};
