@@ -1,26 +1,31 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdio.h>
 
-int endsWith(const char *str, const char *suffix)
-{
-    if (!str || !suffix)
-        return 0;
-    size_t lenstr = strlen(str);
-    size_t lensuffix = strlen(suffix);
-    if (lensuffix >  lenstr)
-        return 0;
-    return strncmp(str + lenstr - lensuffix, suffix, lensuffix) == 0;
-}
-
-extern char **environ;
 extern int execvpe(const char *file, char *const argv[], char *const envp[]);
 
-
+// Wrapper around execvp that will no-op if the file being executed is
+// a maintainer script.
 int execvp(const char *file, char *const argv[]) {
-  if (endsWith(file, "inst") > 0 || endsWith(file, "rm") > 0) {
+  char* rootfs = getenv("ROOTFS");
+  char* tmp = (char*) malloc(strlen(rootfs) + strlen("/var/lib/dpkg/tmp") + 1);
+  char* info = (char*) malloc(strlen(rootfs) + strlen("/var/lib/dpkg/info") + 1);
+
+  strcpy(tmp, rootfs);
+  strcat(tmp, "/var/lib/dpkg/tmp");
+
+  strcpy(info, rootfs);
+  strcat(info, "/var/lib/dpkg/info");
+
+  if (strncmp(tmp, file, strlen(tmp)) == 0) {
     exit(0);
   }
+
+  if (strncmp(info, file, strlen(info)) == 0) {
+    exit(0);
+  }
+
   return execvpe(file, argv, __environ);
 };
 
