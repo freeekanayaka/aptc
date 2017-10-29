@@ -69,6 +69,7 @@ void DefaultConfig(Configuration &Cnf) {
 bool EnsureDataDirectories(Configuration &Cnf) {
   auto RootFs = Cnf.Find("rootfs");
   auto Paths = {
+      Cnf.FindDir("Dir::Etc"),
       Cnf.FindDir("Dir::State"),
       Cnf.FindDir("Dir::State::lists"),
       Cnf.FindDir("Dir:Cache"),
@@ -113,11 +114,11 @@ void RootFsConfig(Configuration &Cnf) {
   // preferences.
   Cnf.CndSet("Dir::Etc", flCombine(RootFs, "etc/apt/"));
   Cnf.CndSet("Dir::Etc::sourcelist","sources.list");
-  Cnf.CndSet("Dir::Etc::sourceparts","sources.list.d");
+  Cnf.CndSet("Dir::Etc::sourceparts","sources.list.d/");
   Cnf.CndSet("Dir::Etc::main","apt.conf");
   Cnf.CndSet("Dir::Etc::parts","apt.conf.d");
   Cnf.CndSet("Dir::Etc::preferences","preferences");
-  Cnf.CndSet("Dir::Etc::preferencesparts","preferences.d");
+  Cnf.CndSet("Dir::Etc::preferencesparts","preferences.d/");
 
   // Set dpkg options
   Cnf.Set("DPkg::Options::1", "--force-not-root");
@@ -184,8 +185,7 @@ bool EnsureTrustedFile(Configuration &Cnf, std::string Suite) {
 
   Debug("Copying keyring file from '%s' to '%s'", Source.c_str(), Target.c_str());
 
-  return (CreateParentDirectory(Target) &&
-	  In.Open(Source, FileFd::ReadOnly) &&
+  return (In.Open(Source, FileFd::ReadOnly) &&
 	  Out.Open(Target, FileFd::WriteOnly | FileFd::Create) &&
 	  CopyFile(In, Out) &&
 	  In.Close() &&

@@ -1,7 +1,7 @@
 #!/bin/sh
 # file: test-install.sh
 
-APTC="../../build/cmd/aptc --rootfs=tmp"
+APTC="../../build/cmd/aptc --rootfs=tmp --option=Debug::aptc=true"
 
 setUp() {
     ./fixture-repo.sh setup
@@ -14,7 +14,7 @@ tearDown() {
 }
 
 testInitDebian() {
-    $APTC init sid
+    aptc init sid
     sourcesList=tmp/etc/apt/sources.list
     assertTrue "no sources file exists" "[ -f $sourcesList ]"
     assertTrue "sources.list deb release not sid" "grep -q sid $sourcesList"
@@ -22,7 +22,7 @@ testInitDebian() {
 }
 
 testInitUbuntu() {
-    $APTC init bionic
+    aptc init bionic
     sourcesList=tmp/etc/apt/sources.list
     assertTrue "no sources file exists" "[ -f $sourcesList ]"
     assertTrue "sources.list deb release not bionic" "grep -q bionic $sourcesList"
@@ -30,11 +30,19 @@ testInitUbuntu() {
 }
 
 testInstall() {
-    $APTC init sid "file://$(pwd)"
-    $APTC update --option="Dir::Etc::trusted=./gpg/trusted.gpg" > /dev/null
-    $APTC install test > /dev/null
+    aptc init sid "file://$(pwd)"
+    aptc update --option="Dir::Etc::trusted=./gpg/trusted.gpg"
+    aptc install test
     assertTrue "no test package installed" "[ -f tmp/usr/share/doc/test/copyright ]"
     assertTrue "test package not in dpkg status" "dpkg --root=tmp -l test | grep -q 0.1-1"
+}
+
+aptc() {
+    if ! $APTC "$@" > aptc.log 2>&1; then
+	fail "aptc failed"
+	cat aptc.log
+    fi
+    rm aptc.log
 }
 
 # shellcheck disable=SC1091
