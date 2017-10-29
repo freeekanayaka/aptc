@@ -2,23 +2,29 @@ version: 2
 jobs:
   build:
     docker:
-      - image: buildpack-deps:artful
+      - image: buildpack-deps:sid
     steps:
       - checkout
       - run:
-          name: Install dependencies
+          name: Dependencies
           command: |
             apt-get update
-            apt-get install -y cmake libapt-pkg-dev shunit2 debian-archive-keyring apt-utils
+            apt-get install -y cmake libapt-pkg-dev
+            apt-get install -y shunit2 ubuntu-archive-keyring apt-utils googletest lcov
       - run:
           name: Build
           command: |
             mkdir build
             cd build
-            cmake -DAPTC_BINDIR=$(pwd)/cmd -DAPTC_LIBDIR=$(pwd)/dpkg ..
+            cmake -DCMAKE_BUILD_TYPE=Coverage -DAPTC_BINDIR=$(pwd)/cmd -DAPTC_LIBDIR=$(pwd)/dpkg ..
             make
       - run:
-          name: Test
+          name: Unit tests
+          command: |
+            cd build
+            make coverage
+      - run:
+          name: Integration tests
           command: |
             cd test/integration/
             ./test-command.sh

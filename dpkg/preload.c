@@ -26,6 +26,9 @@ int execvp(const char *file, char *const argv[]) {
     exit(0);
   }
 
+  free(tmp);
+  free(info);
+
   return execvpe(file, argv, __environ);
 };
 

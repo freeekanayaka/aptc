@@ -56,11 +56,11 @@ bool MakeFile(std::string Path) {
   Debug("Creating empty file '%s'", Path.c_str());
 
   // Create the parent directory and its ancestors.
-  /*std::string Parent = Path; // copy, since dirname() mutates it.
+  std::string Parent = Path; // copy, since dirname() mutates it.
   Parent = dirname((char*)Parent.c_str());
   if (!CreateDirectory("/", Parent)) {
       return _error->Error("Failed to create directory '%s'", Parent.c_str()); // LCOV_EXCL_LINE
-      }*/
+  }
 
   std::fstream Stream;
 
@@ -70,14 +70,5 @@ bool MakeFile(std::string Path) {
   }
   Stream.close();
 
-  return true;
-}
-
-bool CreateParentDirectory(std::string Path) {
-  std::string Parent = Path; // copy, since dirname() mutates it.
-  Parent = dirname((char*)Parent.c_str());
-  if (!CreateDirectory("/", Parent)) {
-      return _error->Error("Failed to create directory '%s'", Parent.c_str()); // LCOV_EXCL_LINE
-  }
   return true;
 }

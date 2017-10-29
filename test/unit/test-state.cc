@@ -4,6 +4,7 @@
 #include <apt-pkg/error.h>
 #include <apt-pkg/configuration.h>
 #include <apt-pkg/cmndline.h>
+#include <apt-pkg/fileutl.h>
 
 #include "config.h"
 #include "state.h"
@@ -30,6 +31,7 @@ TEST(EnsureDataDirectoriesTest, CreateMissingDirs) {
 
   Configuration Cnf;
   DefaultConfig(Cnf);
+  RootFsConfig(Cnf);
 
   EXPECT_TRUE(EnsureDataDirectories(Cnf));
 
@@ -39,7 +41,7 @@ TEST(EnsureDataDirectoriesTest, CreateMissingDirs) {
 // If the state directory can't be created, an error is set.
 TEST(EnsureDataDirectoriesTest, DirStateError) {
   Configuration Cnf;
-  Cnf.Set("Dir::State", "/not/possible");
+  Cnf.Set("Dir::State", "/dev/null");
 
   EXPECT_FALSE(EnsureDataDirectories(Cnf));
   EXPECT_TRUE(_error->PendingError());
@@ -131,4 +133,16 @@ TEST(CheckDpkgStatusTest, DpkgStatusExists) {
   EXPECT_FALSE(_error->PendingError());
 
   _error->Discard();
+}
+
+// A deb line is written in sources.list
+TEST(EnsureSourcesListFileTest, WriteDebLine) {
+  FixtureTempDir TempDir;
+  TempDir.SetUp();
+
+  Configuration Cnf;
+  Cnf.Set("Dir::Etc::sourcelist", TempDir.Path + "/sources.list");
+
+  EXPECT_TRUE(EnsureSourcesListFile(Cnf, "sid", ""));
+  EXPECT_TRUE(FileExists(TempDir.Path + "/sources.list"));
 }
